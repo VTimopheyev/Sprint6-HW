@@ -302,5 +302,6 @@ abstract class TaskManagerTest<T extends TaskManager> {
         manager.addSubtask(subtask3);
         Assertions.assertNotNull(manager.getPrioritizedIssuesList(), "No list been created");
         Assertions.assertEquals(3, manager.getPrioritizedIssuesList().size(), "Saving to list is incorrect");
+        //System.out.println(manager.getPrioritizedIssuesList());
     }
 }

@@ -15,9 +15,20 @@ public class InMemoryTaskManager implements TaskManager {
     protected HistoryManager historyManager;
     protected TreeMap<ZonedDateTime, Integer> prioritizedIssuesList;
 
+    Comparator<ZonedDateTime> priorityComparator = (zonedDateTime, other) -> {
+        if (zonedDateTime == null) {
+            return 1;
+        } else if (other == null) {
+            return -1;
+        } else if (zonedDateTime.isBefore(other)) {
+            return -1;
+        }
+        return 1;
+    };
+
     public InMemoryTaskManager() {
         this.historyManager = Managers.getDefaultHistory();
-        this.prioritizedIssuesList = new TreeMap<ZonedDateTime, Integer>();
+        this.prioritizedIssuesList = new TreeMap<>(priorityComparator);
     }
 
     public HistoryManager getHistoryManager() {
@@ -46,9 +57,12 @@ public class InMemoryTaskManager implements TaskManager {
             task.setId(idCount);
             task.setStatus(IssueStatus.NEW);
             tasks.put(task.getId(), task);
-            cookPrioritizedIssuesList();
+            if (task.getStartDate() != null) {
+                prioritizedIssuesList.put(task.getStartDate(), task.getId());
+            }else {
+                prioritizedIssuesList.put(task.getStartDate(), task.getId());
+            }
         }
-        cookPrioritizedIssuesList();
     }
 
     @Override
@@ -57,8 +71,8 @@ public class InMemoryTaskManager implements TaskManager {
             if (tasks.containsKey(updatedTask.getId())) {
                 tasks.put(updatedTask.getId(), updatedTask);
             }
+            prioritizedIssuesList.put(updatedTask.getStartDate(), updatedTask.getId());
         }
-        cookPrioritizedIssuesList();
     }
 
     @Override
@@ -134,7 +148,7 @@ public class InMemoryTaskManager implements TaskManager {
             updateEpicStartTime(subtask.getEpicId());
             updateEpicDuration(subtask.getEpicId());
             updateEpicEndTime(subtask.getEpicId());
-            cookPrioritizedIssuesList();
+            prioritizedIssuesList.put(subtask.getStartDate(), subtask.getId());;
         }
     }
 
@@ -148,7 +162,7 @@ public class InMemoryTaskManager implements TaskManager {
             updateEpicStartTime(updatedSubtask.getEpicId());
             updateEpicDuration(updatedSubtask.getEpicId());
             updateEpicEndTime(updatedSubtask.getEpicId());
-            cookPrioritizedIssuesList();
+            prioritizedIssuesList.put(updatedSubtask.getStartDate(), updatedSubtask.getId());
         }
     }
 
@@ -174,12 +188,11 @@ public class InMemoryTaskManager implements TaskManager {
         if (tasks.containsKey(id)) {
             historyManager.removeTaskFromHistory(tasks.get(id), id);
             tasks.remove(id);
-            cookPrioritizedIssuesList();
+            refreshPrioritizedIssuesList();
         } else if (epics.containsKey(id)) {
             historyManager.removeTaskFromHistory(epics.get(id), id);
             epics.remove(id);
             removeAllRelatedSubtasks(id);
-            cookPrioritizedIssuesList();
 
         } else if (subtasks.containsKey(id)) {
             int epicId = subtasks.get(id).getEpicId();
@@ -189,7 +202,7 @@ public class InMemoryTaskManager implements TaskManager {
             updateEpicStartTime(epicId);
             updateEpicDuration(epicId);
             updateEpicEndTime(epicId);
-            cookPrioritizedIssuesList();
+            refreshPrioritizedIssuesList();
         }
     }
 
@@ -498,7 +511,7 @@ public class InMemoryTaskManager implements TaskManager {
         return true;
     }
 
-    private void cookPrioritizedIssuesList() {
+    private void refreshPrioritizedIssuesList() {
         Comparator<ZonedDateTime> priorityComparator = (zonedDateTime, other) -> {
             if (zonedDateTime == null) {
                 return 1;
@@ -507,7 +520,7 @@ public class InMemoryTaskManager implements TaskManager {
             } else if (zonedDateTime.isBefore(other)) {
                 return -1;
             }
-            return -1;
+            return 1;
         };
 
         TreeMap<ZonedDateTime, Integer> prioritizedIssues = new TreeMap(priorityComparator);
@@ -520,7 +533,7 @@ public class InMemoryTaskManager implements TaskManager {
         this.prioritizedIssuesList = prioritizedIssues;
     }
 
-    private Object getInstanceById(int id) {
+    private Task getInstanceById(int id) {
         if (tasks.containsKey(id)) {
             return tasks.get(id);
         } else if (epics.containsKey(id)) {
